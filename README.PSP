@@ -1,0 +1,80 @@
+Port of Abuse-SDL 0.8 R1 for the PSP by JJS
+
+Installation:
+- Copy the file "EBOOT.PBP" to "x:\PSP\GAME\abuse", x: being your PSPs drive letter
+- Get "abuse-0.8.tar.gz" from http://abuse.zoy.org/wiki/download and extract the contents of the "data"
+  folder into the Abuse game folder on the PSP
+- To enable music playback, download Timidity GUS patches from here:
+  http://www.libsdl.org/projects/mixer/timidity/timidity.tar.gz
+  Unpack the archive either into the root of the memory stick ("ms0:/timidity/" or "x:\timidity") 
+  or into a "timidity" subdirectory of the Abuse game directory (e.g. "x:\PSP\GAME\abuse\timidity").
+  
+  
+Configuration:
+After you first run Abuse on the PSP, there will be a file "abuserc" in the Abuse
+directory. It contains options to alter the screen resolution and the analog stick behaviour.
+The file is commented and should be self-explanatory.
+
+
+Controls:
+- Analog stick = aiming = mouse replacement
+- Left trigger = activate special power = right mouse button
+- Right trigger = fire = left mouse button
+- DPAD left = next weapon to the left = ctrl key
+- DPAD right = next weapon to the right = insert key
+- Triangle = jump = up arrow key
+- Cross = activate = down arrow key
+- Square = go left = left arrow key
+- Circle = go right = right arrow key
+- START = escape key
+- SELECT = spacebar, only used for "press SELECT to continue" prompt
+
+
+Changes:
+
+0.8 R1:
+- Improved stability when suspending the PSP
+
+0.8:
+- Updated to Abuse 0.8
+
+0.7.1:
+In revision 2:
+- Added midi music playback
+
+In revison 1:
+- Switched playback code to SDL_mixer
+- Added support for WAV file music
+- Increased the amount of concurrently playing sound effects to 50 (this essentially removes the limit)
+- Reactivated audio panning, sound effects are now played in stereo
+
+From Abuse-SDL 0.7.1 in the initial release:
+- Builds from a standard PSPSDK makefile without configure
+- Reactivated the Lisp memory manager to gain garbage collection back on the temporary space
+- No Lisp cache is created on disk
+- Set a limit to the number of sound effects that are played at once for performance reasons
+- Moved the audio resampling code to be executed once on loading instead of every time the sound is played
+- Removed the audio panning code
+- Added code to fade in and out the sound effects to prevent popping noises
+- Changes to the event handling code to suit the PSP controls
+- Replaced libc file functions in jFILE and some other places with sceIo* to enable suspend mode
+- Disabled network
+- Added code that replaces messages containing key and mouse commands with the respective PSP controls
+
+
+Building the source:
+- Requires the PSPSDK with SDL (and all libraries it depends on)
+- Builds on MinPSPW 0.10 or 0.11 out of the box if SDL_mixer usage is deactivated
+- You might want to apply the SDL patch in the libsdl-psp subdirectory, but it is not strictly necessary
+- To use the SDL_mixer backend, the respective patch in libsdl-psp has to be applied
+
+
+Thanks to:
+- CRACK DOT COM for a kickass game and for releasing the source
+- The porters of Abuse-SDL
+- Special thanks to Sam Hocevar
+
+
+Links:
+- Home of this PSP port: http://jjs.at/redirect/abuse
+- Home of the original Abuse SDL port: http://abuse.zoy.org/

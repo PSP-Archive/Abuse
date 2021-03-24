@@ -1,0 +1,39 @@
+diff -Naur timidity/config.h timidity/config.h
+--- timidity/config.h	2009-10-13 01:06:52.000000000 +0200
++++ timidity/config.h	2011-03-23 17:29:09.614855300 +0100
+@@ -171,15 +171,15 @@
+ 
+ /* You could specify a complete path, e.g. "/etc/timidity.cfg", and
+    then specify the library directory in the configuration file. */
+-#define CONFIG_FILE	"timidity.cfg"
+-#define CONFIG_FILE_ETC "/etc/timidity.cfg"
++#define CONFIG_FILE	"timidity/timidity.cfg"
++#define CONFIG_FILE_ETC "ms0:/timidity/timidity.cfg"
+ 
+ #if defined(__WIN32__) || defined(__OS2__)
+ #define DEFAULT_PATH	"C:\\TIMIDITY"
+ #else
+-#define DEFAULT_PATH	"/etc/timidity"
+-#define DEFAULT_PATH1	"/usr/share/timidity"
+-#define DEFAULT_PATH2	"/usr/local/lib/timidity"
++#define DEFAULT_PATH	"timidity"
++#define DEFAULT_PATH1	"ms0:/timidity"
++#define DEFAULT_PATH2	"ef0:/timidity"
+ #endif
+ 
+ /* These affect general volume */
+diff -Naur wavestream.c wavestream.c
+--- wavestream.c	2009-11-07 06:00:12.000000000 +0100
++++ wavestream.c	2011-03-08 17:00:40.031250000 +0100
+@@ -243,8 +243,9 @@
+ {
+ 	if ( wave ) {
+ 		/* Clean up associated data */
+-		if ( wave->freerw ) {
+-			SDL_FreeRW(wave->rw);
++		/* JJS: Always close the file handle */
++		if ( wave->rw ) {
++			SDL_RWclose(wave->rw);
+ 		}
+ 		if ( wave->cvt.buf ) {
+ 			free(wave->cvt.buf);

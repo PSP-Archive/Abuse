@@ -1,0 +1,1179 @@
+Index: src/game.cpp
+===================================================================
+--- src/game.cpp	(revision 684)
++++ src/game.cpp	(working copy)
+@@ -59,6 +59,15 @@
+ #include "demo.h"
+ #include "netcfg.h"
+ 
++#if defined __PSP__
++#include <pspsdk.h>
++#include <psppower.h>
++#include <pspdebug.h>
++#include "sdlport/suspend.h"
++PSP_HEAP_SIZE_MAX();
++#endif
++
++
+ #define SHIFT_RIGHT_DEFAULT 0
+ #define SHIFT_DOWN_DEFAULT 30
+ 
+@@ -93,7 +102,11 @@
+ {
+     /* FIXME: potential buffer overflow here */
+     char tmp_name[200];
++#if defined __PSP__
++    if (get_filename_prefix() && (strlen(filename) >= 4) && filename[3] != ':')
++#else
+     if(get_filename_prefix() && filename[0] != '/')
++#endif
+         sprintf(tmp_name, "%s %s", get_filename_prefix(), filename);
+     else
+         strcpy(tmp_name, filename);
+@@ -473,7 +486,34 @@
+ 
+ void Game::show_help(char const *st)
+ {
+-    strcpy(help_text, st);
++#if defined __PSP__
++    // PSP: Replace the control messages if applicable
++    if (strcmp(st, "Aim gun with mouse, fire with left mouse button") == 0)
++        strcpy(help_text, "Aim gun with ANALOG STICK, fire with RIGHT TRIGGER");
++    else if ((strcmp(st, "Press the down arrow to activate objects. This is a switch.") == 0)
++        || (strcmp(st, "Press the down key to activate objects. This is a switch.") == 0))
++        strcpy(help_text, "Press CROSS to activate objects. This is a switch.");
++    else if (strcmp(st, "This console saves the state of the game, press down") == 0)
++        strcpy(help_text, "This console saves the state of the game, press CROSS");
++    else if (strcmp(st, "Press down to activate platform") == 0)
++        strcpy(help_text, "Press CROSS to activate platform");
++    else if (strcmp(st, "Hold down the right mouse button to use special powers") == 0)
++        strcpy(help_text, "Hold down LEFT TRIGGER to use special powers");
++    else if (strcmp(st, "Use the CTRL & INS keys to select weapons") == 0)
++        strcpy(help_text, "Use DPAD LEFT & RIGHT to select weapons");
++    else if ((strcmp(st, "Press the up arrow to climb ladders") == 0) ||
++        (strcmp(st, "Press the up key to climb ladders") == 0))
++        strcpy(help_text, "Press TRIANGLE to climb ladders");
++    else if ((strcmp(st, "Press the down arrow to start!") == 0) ||
++        (strcmp(st, "Press the down key to start!") == 0))
++        strcpy(help_text, "Press CROSS to start!");
++    else if (strcmp(st, "Press down to teleport") == 0)
++        strcpy(help_text, "Press CROSS to teleport");
++    else if (strcmp(st, "Press SPACEBAR to continue") == 0)
++        strcpy(help_text, "Press SELECT to continue");
++  else
++#endif
++    strcpy(help_text,st);
+     help_text_frames = 0;
+     refresh = 1;
+ }
+@@ -1247,6 +1287,13 @@
+ 
+ Game::Game(int argc, char **argv)
+ {
++#if defined __PSP__
++  // PSP: Set 333 Mhz
++  scePowerSetClockFrequency(333, 333, 166);
++  // Initialize suspend handler
++  suspend_init();
++#endif
++
+   int i;
+   req_name[0]=0;
+   bg_xmul = bg_ymul = 1;
+@@ -2084,11 +2131,15 @@
+ 
+ void game_printer(char *st)
+ {
++#if defined __PSP__
++  pspDebugScreenPrintf("%s", st);
++#else
+   if(dev_console && !external_print)
+   {
+     dev_console->put_string(st);
+   }
+   else fprintf(stderr, "%s", st);
++#endif
+ }
+ 
+ 
+@@ -2269,7 +2320,11 @@
+   }
+ }
+ 
++#if defined __PSP__
++extern "C" int SDL_main(int argc, char **argv)
++#else
+ int main(int argc, char *argv[])
++#endif
+ {
+     start_argc = argc;
+     start_argv = argv;
+@@ -2387,6 +2442,11 @@
+             g->update_screen(); // redraw the screen with any changes
+         }
+ 
++#if defined __PSP__
++        // Remove the debug screen printer
++        set_dprinter(NULL);
++#endif
++
+         while (!g->done())
+         {
+             music_check();
+Index: src/imlib/specs.cpp
+===================================================================
+--- src/imlib/specs.cpp	(revision 684)
++++ src/imlib/specs.cpp	(working copy)
+@@ -291,7 +291,11 @@
+ {
+   int skip_size=0;
+   char tmp_name[200];
++#if defined __PSP__
++  if (spec_prefix && (strlen(filename) >= 4) && filename[3] != ':')
++#else
+   if (spec_prefix && filename[0] != '/')
++#endif
+     sprintf(tmp_name,"%s%s",spec_prefix,filename);
+   else strcpy(tmp_name,filename);
+ 
+Index: src/intsect.cpp
+===================================================================
+--- src/intsect.cpp	(revision 684)
++++ src/intsect.cpp	(working copy)
+@@ -14,6 +14,10 @@
+ 
+ #include <stdlib.h>
+ 
++#if defined __PSP__
++typedef int int32_t;
++#endif
++
+ void pushback(int32_t x1,int32_t y1,int32_t &x2,int32_t &y2,
+              int32_t xp1, int32_t yp1, int32_t xp2, int32_t yp2, int xdir, int ydir, int inside)
+ {
+Index: src/level.cpp
+===================================================================
+--- src/level.cpp	(revision 684)
++++ src/level.cpp	(working copy)
+@@ -2221,7 +2221,7 @@
+                 }
+             }
+             delete bk;
+-#if (defined(__MACH__) || !defined(__APPLE__))
++#if (!defined(__PSP__) && (defined(__MACH__) || !defined(__APPLE__)))
+             chmod( bkname, S_IRWXU | S_IRWXG | S_IRWXO );
+ #endif
+         }
+@@ -2316,7 +2316,7 @@
+             }
+ 
+             delete fp;
+-#if (defined(__MACH__) || !defined(__APPLE__))
++#if (!defined(__PSP__) && (defined(__MACH__) || !defined(__APPLE__)))
+             chmod( name, S_IRWXU | S_IRWXG | S_IRWXO );
+ #endif
+             write_cache_prof_info();
+Index: src/lol/timer.cpp
+===================================================================
+--- src/lol/timer.cpp	(revision 684)
++++ src/lol/timer.cpp	(working copy)
+@@ -25,6 +25,11 @@
+ #   include <sys/sys_time.h>
+ #   include <sys/timer.h>
+ #   include <sys/time_util.h>
++#elif defined __PSP__
++#   include <sys/time.h>
++#   include <pspsdk.h>
++#   include <psprtc.h>
++#   include <pspthreadman.h>
+ #else
+ #   include <SDL.h>
+ #endif
+@@ -51,6 +56,8 @@
+         QueryPerformanceCounter(&cycles0);
+ #elif defined __CELLOS_LV2__
+         SYS_TIMEBASE_GET(cycles0);
++#elif defined __PSP__
++        sceRtcGetCurrentTick(&cycles0);
+ #else
+         SDL_Init(SDL_INIT_TIMER);
+         ticks0 = SDL_GetTicks();
+@@ -90,6 +97,16 @@
+         towait = deltams - ret;
+         if (towait > 0.0f)
+             sys_timer_usleep((int)(towait * 1e3f));
++#elif defined __PSP__
++        uint64_t cycles;
++        sceRtcGetCurrentTick(&cycles);
++        static float ms_per_cycle = GetMsPerCycle();
++        ret = ms_per_cycle * (cycles - cycles0);
++        if (update)
++            cycles0 = cycles;
++        towait = deltams - ret;
++        if (towait > 0.0f)
++            sceKernelDelayThread((int)(towait * 1e3f));
+ #else
+         /* The crappy SDL fallback */
+         Uint32 ticks = SDL_GetTicks();
+@@ -113,6 +130,8 @@
+         return = 1e3f / tmp.QuadPart;
+ #elif defined __CELLOS_LV2__
+         return 1e3f / sys_time_get_timebase_frequency();
++#elif defined __PSP__
++        return 1e3f / sceRtcGetTickResolution();
+ #else
+         return 1.0f;
+ #endif
+@@ -122,7 +141,7 @@
+     struct timeval tv0;
+ #elif defined _WIN32
+     LARGE_INTEGER cycles0;
+-#elif defined __CELLOS_LV2__
++#elif defined __CELLOS_LV2__ || defined __PSP__
+     uint64_t cycles0;
+ #else
+     Uint32 ticks0;
+Index: src/Makefile.psp
+===================================================================
+--- src/Makefile.psp	(revision 0)
++++ src/Makefile.psp	(working copy)
+@@ -0,0 +1,34 @@
++TARGET = abuse
++
++BASE = configuration.o ability.o ant.o automap.o cache.o chars.o chat.o clisp.o collide.o compiled.o console.o cop.o crc.o demo.o dev.o devsel.o director.o endgame.o extend.o fnt6x13.o game.o gamma.o gui.o help.o innet.o intsect.o items.o lcache.o level.o light.o loader2.o loadgame.o menu.o morpher.o netcfg.o nfclient.o objects.o particle.o points.o profile.o property.o sensor.o seq.o smallfnt.o specache.o statbar.o transp.o view.o
++IMLIB = imlib/video.o imlib/event.o imlib/transimage.o imlib/dprint.o imlib/filesel.o imlib/filter.o imlib/fonts.o imlib/guistat.o imlib/image.o imlib/include.o imlib/input.o imlib/jrand.o imlib/jwindow.o imlib/keys.o imlib/linked.o imlib/palette.o imlib/pcxread.o imlib/pmenu.o imlib/scroller.o imlib/specs.o imlib/sprite.o imlib/status.o imlib/supmorph.o imlib/tools.o
++LISP = lisp/trig.o lisp/lisp.o lisp/lisp_gc.o lisp/lisp_opt.o
++NET = net/fileman.o net/gclient.o net/gserver.o net/sock.o net/tcpip.o
++SDL_PORT = sdlport/event.o sdlport/jdir.o sdlport/joystick.o sdlport/setup.o sdlport/sound.o sdlport/timing.o sdlport/video.o sdlport/hmi.o
++LOL = lol/matrix.o lol/timer.o
++UI = ui/volumewindow.o ui/volumewindow.o
++SUSPEND = sdlport/suspend.o
++OBJS = $(BASE) $(IMLIB) $(LISP) $(NET) $(LOL) $(UI) $(SDL_PORT) $(SUSPEND)
++
++INCDIR = imlib lisp net sdl_port
++CFLAGS = -g -O2 -G0 -fomit-frame-pointer -Wall -D__PSP__ -DMANAGE_MEM -DNO_CHECK -DPACKAGE_NAME="\"Abuse\"" -DPACKAGE_VERSION="\"0.8\"" -DASSETDIR="\".\""
++CXXFLAGS = $(CFLAGS) -fno-rtti -fno-exceptions
++ASFLAGS = $(CFLAGS)
++LIBS = -lc -lstdc++ -lSDL_mixer -lsmpeg -lmikmod -lmmio -lvorbisfile -lvorbisenc -lvorbis -logg -lstdc++
++
++LDFLAGS =
++
++EXTRA_TARGETS = EBOOT.PBP
++PSP_EBOOT_TITLE = Abuse 0.8 R1
++PSP_EBOOT_ICON = ICON0.PNG
++
++PSP_LARGE_MEMORY = 1
++
++PSP_FW_VERSION = 371
++BUILD_PRX = 1
++ENCRYPT = 0
++
++PSPSDK=$(shell psp-config --pspsdk-path)
++CFLAGS += $(shell $(PSPSDK)/../../bin/sdl-config --cflags)
++LIBS += $(shell $(PSPSDK)/../../bin/sdl-config --libs) -lpspirkeyb -lpsppower
++include $(PSPSDK)/lib/build.mak
+Index: src/sdlport/event.cpp
+===================================================================
+--- src/sdlport/event.cpp	(revision 684)
++++ src/sdlport/event.cpp	(working copy)
+@@ -23,7 +23,10 @@
+ #endif
+ 
+ #include <SDL.h>
+-
++#if defined __PSP__
++#include <SDL/SDL_thread.h>
++#include "setup.h"
++#endif
+ #include "common.h"
+ 
+ #include "image.h"
+@@ -38,10 +41,59 @@
+ extern int mouse_xscale, mouse_yscale;
+ short mouse_buttons[5] = { 0, 0, 0, 0, 0 };
+ 
++
++#if defined __PSP__
++SDL_Joystick* joy;
++SDL_Thread* event_thread;
++bool event_thread_running = true;
++
++extern flags_struct flags;
++
++// PSP SDL buttons
++#define PSP_BUTTON_TRIANGLE 0
++#define PSP_BUTTON_CIRCLE 1
++#define PSP_BUTTON_CROSS 2
++#define PSP_BUTTON_SQUARE 3
++#define PSP_BUTTON_LTRIGGER 4
++#define PSP_BUTTON_RTRIGGER 5
++#define PSP_BUTTON_DOWN 6
++#define PSP_BUTTON_LEFT 7
++#define PSP_BUTTON_UP 8
++#define PSP_BUTTON_RIGHT 9
++#define PSP_BUTTON_SELECT 10
++#define PSP_BUTTON_START 11
++#define PSP_BUTTON_HOME 12
++#define PSP_BUTTON_HOLD 13
++
++int event_provider(void* data)
++{
++    while (event_thread_running)
++    {
++      SDL_Delay(25);
++      SDL_Event event;
++      event.type = SDL_JOYAXISMOTION;
++      SDL_PushEvent(&event);
++    }
++}
++
++#endif
++
++
++
+ void EventHandler::SysInit()
+ {
+     // Ignore activate events
+     SDL_EventState(SDL_ACTIVEEVENT, SDL_IGNORE);
++
++#if defined __PSP__
++    // PSP: Initialize the joystick
++    SDL_JoystickEventState(SDL_ENABLE);
++    joy = SDL_JoystickOpen(0);
++
++    // Create a thread to generate input events. This simplyfies
++    // the handling of the analogs stick as a mouse.
++    event_thread = SDL_CreateThread(&event_provider, NULL);	
++#endif
+ }
+ 
+ void EventHandler::SysWarpMouse(ivec2 pos)
+@@ -74,12 +126,16 @@
+     ev.mouse_move.x = m_pos.x;
+     ev.mouse_move.y = m_pos.y;
+     ev.mouse_button = m_button;
++#if defined __PSP__
++    ev.type = EV_SPURIOUS;
++#endif
+ 
+     // Gather next event
+     SDL_Event sdlev;
+     if (!SDL_PollEvent(&sdlev))
+         return; // This should not happen
+ 
++#if !defined __PSP__
+     // Sort the mouse out
+     int x, y;
+     uint8_t buttons = SDL_GetMouseState(&x, &y);
+@@ -134,11 +190,113 @@
+     }
+     m_pos = ivec2(ev.mouse_move.x, ev.mouse_move.y);
+     m_button = ev.mouse_button;
++#endif
+ 
+     // Sort out other kinds of events
+     switch(sdlev.type)
+     {
++#if defined __PSP__
++    case SDL_JOYBUTTONDOWN:
++    case SDL_JOYBUTTONUP:
++    {
++        int do_process_key = 0;
++        int do_process_mouse_button = 0;
++
++        switch( sdlev.jbutton.button )
++        {
++        case PSP_BUTTON_CROSS:
++            ev.key = JK_DOWN;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_TRIANGLE:
++            ev.key = JK_UP;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_SQUARE:
++            ev.key = JK_LEFT;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_CIRCLE:
++            ev.key = JK_RIGHT;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_START:
++            ev.key = JK_ESC;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_LEFT:
++            ev.key = JK_CTRL_L;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_RIGHT:
++            ev.key = JK_INSERT;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_SELECT:
++            ev.key = JK_SPACE;
++            do_process_key = 1;
++            break;
++        case PSP_BUTTON_RTRIGGER:
++        case PSP_BUTTON_LTRIGGER:
++            ev.type = EV_MOUSE_BUTTON;
++            ev.mouse_button = ((SDL_JoystickGetButton(joy, PSP_BUTTON_RTRIGGER)) != 0 ) |
++                              ((SDL_JoystickGetButton(joy, PSP_BUTTON_LTRIGGER)) != 0 ) << 1;
++            break;
++        default: ev.key = EV_SPURIOUS;
++            break;
++        }
++
++        if (do_process_key)
++            ev.type = (sdlev.jbutton.type == SDL_JOYBUTTONDOWN) ? EV_KEY : EV_KEYRELEASE;
++
++        break;
++    }
++
++    case SDL_JOYAXISMOTION:
++    {
++        int xv = (SDL_JoystickGetAxis(joy, 0) / 256);
++        int yv = (SDL_JoystickGetAxis(joy, 1) / 256);
++
++        int range = 128 - flags.analog_deadzone;
++          
++        if ((abs(xv) > flags.analog_deadzone))
++        {
++            xv -= (xv > 0) ? flags.analog_deadzone : -flags.analog_deadzone;
++
++            int tempx = m_pos.x + floor((float)xv / flags.analog_divider);
++
++            if (tempx < 0)
++                tempx = 0;
++            if (tempx > main_screen->Size().x - 1)
++                tempx = main_screen->Size().x - 1;
++
++            ev.mouse_move.x = tempx;
++            ev.type = EV_MOUSE_MOVE;
++        }
++
++        if (abs(yv) > flags.analog_deadzone)
++        {
++            yv -= (yv > 0) ? flags.analog_deadzone : -flags.analog_deadzone;
++
++            int tempy = m_pos.y + floor((float)yv / flags.analog_divider);
++
++            if (tempy < 0)
++                tempy = 0;
++            if (tempy > main_screen->Size().y - 1)
++                tempy = main_screen->Size().y - 1;
++
++            ev.mouse_move.y = tempy;
++            ev.type = EV_MOUSE_MOVE;
++        }
++        break;
++    }
++#endif
++
+     case SDL_QUIT:
++#if defined __PSP__
++        event_thread_running = false;
++        SDL_WaitThread(event_thread, NULL);
++#endif
+         exit(0);
+         break;
+     case SDL_MOUSEBUTTONUP:
+@@ -305,5 +463,10 @@
+             break;
+         }
+     }
++
++#if defined __PSP__
++    m_pos = ivec2(ev.mouse_move.x, ev.mouse_move.y);
++    m_button = ev.mouse_button;
++#endif
+ }
+ 
+Index: src/sdlport/setup.cpp
+===================================================================
+--- src/sdlport/setup.cpp	(revision 684)
++++ src/sdlport/setup.cpp	(working copy)
+@@ -43,7 +43,7 @@
+ #include "setup.h"
+ 
+ flags_struct flags;
+-keys_struct keys;
++keys_struct sdl_keys; // PSP: Renamed to solve name collision with SDL
+ 
+ extern int xres, yres;
+ static unsigned int scale;
+@@ -93,6 +93,14 @@
+     if( (fd = fopen( rcfile, "w" )) != NULL )
+     {
+         fputs( "; Abuse-SDL Configuration file\n\n", fd );
++
++#if defined __PSP__
++        fputs( "; Resolution, default is 320x200\nx=320\ny=200\n\n", fd );
++        fputs( "; Analog stick divider, higher value means lower sensitivity\nanalog_divider=18\n\n", fd );
++        fputs( "; Analog stick dead zone, should be between 0 and 127\nanalog_deadzone=10\n\n", fd );
++        fputs( "; Enable music\nenable_music=1\n\n", fd );
++        fputs( "; Save converted midi music\nsave_music=0\n\n", fd );
++#else
+         fputs( "; Startup fullscreen\nfullscreen=0\n\n", fd );
+         #ifdef __APPLE__
+         fputs( "; Use DoubleBuffering\ndoublebuf=1\n\n", fd );
+@@ -113,6 +121,8 @@
+         fputs( "; Key mappings\n", fd );
+         fputs( "left=LEFT\nright=RIGHT\nup=UP\ndown=DOWN\n", fd );
+         fputs( "fire=SPACE\nweapprev=CTRL_R\nweapnext=INSERT\n", fd );
++#endif
++
+         fclose( fd );
+     }
+     else
+@@ -205,43 +215,65 @@
+             else if( strcasecmp( result, "left" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.left = key_value( result );
++                sdl_keys.left = key_value( result );
+             }
+             else if( strcasecmp( result, "right" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.right = key_value( result );
++                sdl_keys.right = key_value( result );
+             }
+             else if( strcasecmp( result, "up" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.up = key_value( result );
++                sdl_keys.up = key_value( result );
+             }
+             else if( strcasecmp( result, "down" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.down = key_value( result );
++                sdl_keys.down = key_value( result );
+             }
+             else if( strcasecmp( result, "fire" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.b2 = key_value( result );
++                sdl_keys.b2 = key_value( result );
+             }
+             else if( strcasecmp( result, "special" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.b1 = key_value( result );
++                sdl_keys.b1 = key_value( result );
+             }
+             else if( strcasecmp( result, "weapprev" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.b3 = key_value( result );
++                sdl_keys.b3 = key_value( result );
+             }
+             else if( strcasecmp( result, "weapnext" ) == 0 )
+             {
+                 result = strtok( NULL,"\n" );
+-                keys.b4 = key_value( result );
++                sdl_keys.b4 = key_value( result );
+             }
++#if defined __PSP__
++            else if( strcasecmp( result, "analog_deadzone" ) == 0 )
++            {
++                result = strtok( NULL, "\n" );
++                flags.analog_deadzone = atoi( result );
++            }
++            else if( strcasecmp( result, "analog_divider" ) == 0 )
++            {
++                result = strtok( NULL, "\n" );
++                flags.analog_divider = (float)atoi( result );
++            }
++            else if( strcasecmp( result, "save_music" ) == 0 )
++            {
++                result = strtok( NULL, "\n" );
++                flags.save_music = atoi( result );
++            }
++            else if( strcasecmp( result, "enable_music" ) == 0 )
++            {
++                result = strtok( NULL, "\n" );
++                flags.enable_music = atoi( result );
++            }
++#endif
+         }
+         fclose( fd );
+     }
+@@ -360,23 +392,33 @@
+ #else
+     flags.gl                = 0;            // Don't use opengl
+     flags.doublebuf            = 0;            // No double buffering
+-    #endif
++#endif
+ #ifdef HAVE_OPENGL
+     flags.antialias            = GL_NEAREST;    // Don't anti-alias
+ #endif
+-    keys.up                    = key_value( "UP" );
+-    keys.down                = key_value( "DOWN" );
+-    keys.left                = key_value( "LEFT" );
+-    keys.right                = key_value( "RIGHT" );
+-    keys.b3                    = key_value( "CTRL_R" );
+-    keys.b4                    = key_value( "INSERT" );
++    sdl_keys.up                    = key_value( "UP" );
++    sdl_keys.down                = key_value( "DOWN" );
++    sdl_keys.left                = key_value( "LEFT" );
++    sdl_keys.right                = key_value( "RIGHT" );
++    sdl_keys.b3                    = key_value( "CTRL_R" );
++    sdl_keys.b4                    = key_value( "INSERT" );
++
++#if defined(__PSP__)
++    scale                    = 1;            // Default scale amount
++#else
+     scale                    = 2;            // Default scale amount
++#endif
+ 
+     // Display our name and version
+     printf( "%s %s\n", PACKAGE_NAME, PACKAGE_VERSION );
+ 
+     // Initialize SDL with video and audio support
++#if defined(__PSP__)
++    // PSP: Needs the joystick too
++    if( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK ) < 0 )
++#else
+     if( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) < 0 )
++#endif
+     {
+         printf( "Unable to initialise SDL : %s\n", SDL_GetError() );
+         exit( 1 );
+@@ -388,6 +430,15 @@
+     char *savedir;
+     FILE *fd = NULL;
+ 
++#if defined __PSP__
++    // PSP: Use the current directory for everything.
++    // All filenames must have absolute paths!
++    char current_directory[256];
++    memset(current_directory, 0, 256);
++    strncpy(current_directory, argv[0], strlen(argv[0]) - strlen("EBOOT.PBP"));
++    set_filename_prefix(current_directory);
++    set_save_filename_prefix(current_directory);
++#else
+     if( (homedir = getenv( "HOME" )) != NULL )
+     {
+         savedir = (char *)malloc( strlen( homedir ) + 9 );
+@@ -431,6 +482,7 @@
+     #else
+     set_filename_prefix( ASSETDIR );
+     #endif
++#endif
+ 
+     // Load the users configuration
+     readRCFile();
+@@ -458,21 +510,21 @@
+ int get_key_binding(char const *dir, int i)
+ {
+     if( strcasecmp( dir, "left" ) == 0 )
+-        return keys.left;
++        return sdl_keys.left;
+     else if( strcasecmp( dir, "right" ) == 0 )
+-        return keys.right;
++        return sdl_keys.right;
+     else if( strcasecmp( dir, "up" ) == 0 )
+-        return keys.up;
++        return sdl_keys.up;
+     else if( strcasecmp( dir, "down" ) == 0 )
+-        return keys.down;
++        return sdl_keys.down;
+     else if( strcasecmp( dir, "b1" ) == 0 )
+-        return keys.b1;
++        return sdl_keys.b1;
+     else if( strcasecmp( dir, "b2" ) == 0 )
+-        return keys.b2;
++        return sdl_keys.b2;
+     else if( strcasecmp( dir, "b3" ) == 0 )
+-        return keys.b3;
++        return sdl_keys.b3;
+     else if( strcasecmp( dir, "b4" ) == 0 )
+-        return keys.b4;
++        return sdl_keys.b4;
+ 
+     return 0;
+ }
+Index: src/sdlport/setup.h
+===================================================================
+--- src/sdlport/setup.h	(revision 684)
++++ src/sdlport/setup.h	(working copy)
+@@ -24,6 +24,12 @@
+     short overlay;
+     short gl;
+     int antialias;
++#if defined __PSP__
++    int analog_deadzone;
++    float analog_divider;
++    int save_music;
++    int enable_music;
++#endif
+ };
+ 
+ struct keys_struct
+Index: src/sdlport/sound.cpp
+===================================================================
+--- src/sdlport/sound.cpp	(revision 684)
++++ src/sdlport/sound.cpp	(working copy)
+@@ -66,7 +66,12 @@
+     fclose(f);
+     free(sfxdir);
+ 
++#if defined __PSP__
++    // Speed up audio mixing by using 11 kHz and a larger buffer
++    if (Mix_OpenAudio(11025, AUDIO_S16SYS, 2, 256) < 0)
++#else
+     if (Mix_OpenAudio(44100, AUDIO_S16SYS, 2, 128) < 0)
++#endif
+     {
+         printf( "Sound: Unable to open audio - %s\nSound: Disabled (error)\n", SDL_GetError() );
+         return 0;
+Index: src/sdlport/suspend.c
+===================================================================
+--- src/sdlport/suspend.c	(revision 0)
++++ src/sdlport/suspend.c	(working copy)
+@@ -0,0 +1,356 @@
++/*
++  Partial rewrite of newlib I/O functions to allow suspend by JJS.
++  
++  The idea is described in this post by Jim Paris on ps2dev:
++  http://forums.ps2dev.org/viewtopic.php?p=87576#87576
++
++  Implementation here only covers actual files.
++  
++  Usage is simple. Just link with this file and place a call to
++  suspend_init() at the start of your application.
++  
++  This is the file header from PSP newlib (from MINPSPW):
++*/
++/*
++ * PSP Software Development Kit - http://www.pspdev.org
++ * -----------------------------------------------------------------------
++ * Licensed under the BSD license, see LICENSE in PSPSDK root for details.
++ *
++ * libcglue.c - Newlib-compatible system calls.
++ *
++ * Copyright (c) 2005 Marcus R. Brown <mrbrown@ocgnet.org>
++ * Copyright (c) 2005 James Forshaw <tyranid@gmail.com>
++ * Copyright (c) 2005 John Kelley <ps2dev@kelley.ca>
++ * Copyright (c) 2005 Jim Paris <jim@jtan.com>
++ * 
++ */
++
++#include <pspsdk.h>
++#include <psppower.h>
++#include <pspkernel.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <malloc.h>
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/fcntl.h>
++
++#define __PSP_FILENO_MAX 1024
++#define MAXPATHLEN 1024
++
++#define __PSP_IS_FD_VALID(FD) \
++	( (FD >= 0) && (FD < __PSP_FILENO_MAX) && (__psp_descriptormap[FD] != NULL) )
++
++typedef struct {
++	char * filename;
++	u8     type;
++	u32    sce_descriptor;
++	u32    flags;
++	u32    ref_count;
++} __psp_descriptormap_type;
++
++typedef enum {
++	__PSP_DESCRIPTOR_TYPE_FILE,
++	__PSP_DESCRIPTOR_TYPE_PIPE,
++	__PSP_DESCRIPTOR_TYPE_SOCKET,
++	__PSP_DESCRIPTOR_TYPE_TTY
++} __psp_fdman_fd_types;
++
++extern __psp_descriptormap_type *__psp_descriptormap[__PSP_FILENO_MAX];
++extern int __psp_path_absolute(const char *in, char *out, int len);
++extern int __psp_fdman_get_new_descriptor();
++extern int __psp_set_errno(int code);
++extern int __psp_pipe_nonblocking_read(int fd, void *buf, size_t len);
++extern int __psp_pipe_read(int fd, void *buf, size_t len);
++extern int __psp_pipe_write(int fd, const void *buf, size_t size);
++extern int __psp_pipe_nonblocking_write(int fd, const void *buf, size_t len);
++extern ssize_t __psp_socket_send(int s, const void *buf, size_t len, int flags) __attribute__((weak));
++extern ssize_t __psp_socket_recv(int s, void *buf, size_t len, int flags) __attribute__((weak));
++
++volatile int offsets[__PSP_FILENO_MAX];
++volatile int suspending = 0;
++volatile int resumed = 0;
++volatile int descriptors_are_valid = 1; /* Descriptors are not updated until the next file operation. */
++
++
++/* Close, reopen and seek all files that were opened before going into suspend mode. */
++void reopen_files()
++{
++	int i;
++	for (i = 3; i < __PSP_FILENO_MAX; i++) { // 0,1,2 are owned by the kernel
++		if ((__psp_descriptormap[i]) && (offsets[i] > -1)) {
++			int result = sceIoClose(__psp_descriptormap[i]->sce_descriptor);
++			printf("Closing file %p with result %p\n", i, result);
++			if (result > -1) {
++				__psp_descriptormap[i]->sce_descriptor = sceIoOpen(__psp_descriptormap[i]->filename, get_sce_flags(__psp_descriptormap[i]->flags, 1), 0777);
++				result = sceIoLseek32(__psp_descriptormap[i]->sce_descriptor, offsets[i], PSP_SEEK_SET);
++				printf("Reopened file %p with result %p\n", i, __psp_descriptormap[i]->sce_descriptor);
++				printf("Seeked file %p to position %p with result %p\n", i, offsets[i], result);
++			}
++		}
++	}
++	descriptors_are_valid = 1;
++	resumed = 0;
++	suspending = 0;
++}
++
++
++int get_sce_flags(int flags, int modify_for_resuming)
++{
++    int sce_flags;
++
++	/* O_RDONLY starts at 0, where PSP_O_RDONLY starts at 1, so remap the read/write
++	   flags by adding 1. */
++	sce_flags = (flags & O_ACCMODE) + 1;
++
++	/* Translate standard open flags into the flags understood by the PSP kernel. */
++	if (flags & O_APPEND) {
++		sce_flags |= PSP_O_APPEND;
++	}
++	if (flags & O_CREAT) {
++		sce_flags |= PSP_O_CREAT;
++	}
++	
++	/* Don' truncate files on reopening. */
++	if (!modify_for_resuming && (flags & O_TRUNC)) {
++		sce_flags |= PSP_O_TRUNC;
++	}
++	
++	if (flags & O_EXCL) {
++		sce_flags |= PSP_O_EXCL;
++	}
++	if (flags & O_NONBLOCK) {
++		sce_flags |= PSP_O_NBLOCK;
++	}
++	
++	return sce_flags;
++}
++
++
++off_t _lseek(int fd, off_t offset, int whence)
++{
++	if (!__PSP_IS_FD_VALID(fd)) {
++		errno = EBADF;
++		return -1;
++	}
++
++	if (__psp_descriptormap[fd]->type != __PSP_DESCRIPTOR_TYPE_FILE) {
++		errno = EBADF;
++		return -1;
++	}
++	else {
++		/* We don't have to do anything with the whence argument because SEEK_* == PSP_SEEK_*. */
++		while (suspending) {
++			sceKernelDelayThread(1000 * 1000);
++			printf("Waiting in seek...\n");
++
++			if (resumed) {
++				resumed = 0;
++				printf("Resuming from seek...\n");
++				reopen_files();
++			}			
++		}	
++		return (off_t) __psp_set_errno(sceIoLseek(__psp_descriptormap[fd]->sce_descriptor, offset, whence));
++	}
++}
++
++
++int _open(const char *name, int flags, int mode)
++{
++	int scefd, fd;
++	int sce_flags;
++	char dest[MAXPATHLEN + 1];
++
++	if(__psp_path_absolute(name, dest, MAXPATHLEN) < 0) {
++		errno = ENAMETOOLONG;
++		return -1;
++	}
++
++	sce_flags = get_sce_flags(flags, 0);
++	
++	while (suspending) {
++		sceKernelDelayThread(1000 * 1000);
++		printf("Waiting in open...\n");
++
++		if (resumed) {
++		    resumed = 0;
++			printf("Resuming from open...\n");
++			reopen_files();
++		}
++	}
++		
++	scefd = sceIoOpen(dest, sce_flags, mode);
++	if (scefd >= 0) {
++		fd = __psp_fdman_get_new_descriptor();
++		if (fd != -1) {
++			__psp_descriptormap[fd]->sce_descriptor = scefd;
++			__psp_descriptormap[fd]->type     		= __PSP_DESCRIPTOR_TYPE_FILE;
++			__psp_descriptormap[fd]->flags    		= flags;
++			__psp_descriptormap[fd]->filename 		= strdup(dest);
++			return fd;
++		}
++		else {
++			sceIoClose(scefd);
++			errno = ENOMEM;
++			return -1;
++		}
++	} 
++	else {
++		return __psp_set_errno(scefd);
++	}
++	
++}
++
++
++int _read(int fd, void *buf, size_t size)
++{
++	if (!__PSP_IS_FD_VALID(fd)) {
++		errno = EBADF;
++		return -1;
++	}
++
++	switch(__psp_descriptormap[fd]->type)
++	{
++		case __PSP_DESCRIPTOR_TYPE_FILE:
++		{
++			while (suspending) {
++				sceKernelDelayThread(1000 * 1000);
++				printf("Waiting in read...\n");
++				
++				if (resumed) {
++					resumed = 0;
++					printf("Resuming from read...\n");
++					reopen_files();
++				}
++			}
++			return __psp_set_errno(sceIoRead(__psp_descriptormap[fd]->sce_descriptor, buf, size));
++			break;
++		}
++		case __PSP_DESCRIPTOR_TYPE_TTY:
++			return __psp_set_errno(sceIoRead(__psp_descriptormap[fd]->sce_descriptor, buf, size));
++			break;
++		case __PSP_DESCRIPTOR_TYPE_PIPE:
++			if (__psp_descriptormap[fd]->flags & O_NONBLOCK) {
++				return __psp_pipe_nonblocking_read(fd, buf, size);
++			}
++			else {
++				return __psp_pipe_read(fd, buf, size);
++			}
++			break;
++		case __PSP_DESCRIPTOR_TYPE_SOCKET:
++			if (__psp_socket_recv != NULL) {
++				return __psp_socket_recv(fd, buf, size, 0);
++			}
++			break;
++		default:
++			break;
++	}
++
++	errno = EBADF;
++	return -1;
++}
++
++
++int _write(int fd, const void *buf, size_t size)
++{
++	if (!__PSP_IS_FD_VALID(fd)) {
++		errno = EBADF;
++		return -1;
++	}
++
++	switch(__psp_descriptormap[fd]->type)
++	{
++		case __PSP_DESCRIPTOR_TYPE_FILE:
++		{
++			while (suspending) {
++				sceKernelDelayThread(1000 * 1000);
++				printf("Waiting in write...\n");
++				
++				if (resumed) {
++					resumed = 0;
++					printf("Resuming from write...\n");
++					reopen_files();
++				}
++			}
++			return __psp_set_errno(sceIoWrite(__psp_descriptormap[fd]->sce_descriptor, buf, size));
++			break;
++		}
++		case __PSP_DESCRIPTOR_TYPE_TTY:
++			return __psp_set_errno(sceIoWrite(__psp_descriptormap[fd]->sce_descriptor, buf, size));
++			break;
++	
++		case __PSP_DESCRIPTOR_TYPE_PIPE:
++			if (__psp_descriptormap[fd]->flags & O_NONBLOCK) {
++				return __psp_pipe_nonblocking_write(fd, buf, size);
++			}
++			else {
++				return __psp_pipe_write(fd, buf, size);
++			}
++			break;
++			break;
++		case __PSP_DESCRIPTOR_TYPE_SOCKET:
++			if (__psp_socket_send != NULL) {
++				return __psp_socket_send(fd, buf, size, 0);
++			}
++			break;
++		default:
++			break;
++	}
++
++	errno = EBADF;
++	return -1;
++}
++
++
++
++int suspend_power_callback(int unknown, int pwrflags, void *common)
++{
++	int i;
++	if (pwrflags & PSP_POWER_CB_RESUME_COMPLETE) {
++		// The delay might help with avoiding the 0x80020328 (driver deleted) error.
++		// It occurs when calling sceIo* functions shortly after resuming.
++		sceKernelDelayThread(1000 * 500);
++		resumed = 1;
++	}
++	else if (pwrflags & PSP_POWER_CB_SUSPENDING) {
++		suspending = 1;
++		if (descriptors_are_valid)
++		{
++			for (i = 3; i < __PSP_FILENO_MAX; i++) {
++				offsets[i] = -1;
++				if (__psp_descriptormap[i]) {
++					offsets[i] = sceIoLseek32(__psp_descriptormap[i]->sce_descriptor, 0, PSP_SEEK_CUR);
++				}
++			}
++		}
++		descriptors_are_valid = 0;
++	}
++
++	return 0;
++}
++
++
++int suspend_callback_thread(SceSize args, void *argp)
++{
++	int cbid;
++
++	cbid = sceKernelCreateCallback("Power Callback", suspend_power_callback, NULL);
++	scePowerRegisterCallback(-1, cbid);
++	sceKernelSleepThreadCB();
++
++	return 0;
++}
++
++
++/* Call this function from somewhere in your application to set up the callbacks. */
++void suspend_init()
++{
++	memset((void*)offsets, 0, sizeof(int) * __PSP_FILENO_MAX);
++
++	SceUID thid = sceKernelCreateThread("suspend_update_thread", suspend_callback_thread, 0x11, 0xFA0, THREAD_ATTR_USER, 0);
++	if(thid > -1) {
++		sceKernelStartThread(thid, 0, 0);
++	}
++}
+Index: src/sdlport/suspend.h
+===================================================================
+--- src/sdlport/suspend.h	(revision 0)
++++ src/sdlport/suspend.h	(working copy)
+@@ -0,0 +1,14 @@
++#ifndef SUSPEND_H
++#define SUSPEND_H
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++void suspend_init();
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif
+Index: src/sdlport/video.cpp
+===================================================================
+--- src/sdlport/video.cpp	(revision 684)
++++ src/sdlport/video.cpp	(working copy)
+@@ -76,6 +76,10 @@
+     const SDL_VideoInfo *vidInfo;
+     int vidFlags = SDL_HWPALETTE;
+ 
++#if defined __PSP__
++    // Just use these flags
++    vidFlags |= SDL_SWSURFACE | SDL_FULLSCREEN;
++#else
+     // Check for video capabilities
+     vidInfo = SDL_GetVideoInfo();
+     if(vidInfo->hw_available)
+@@ -88,6 +92,7 @@
+ 
+     if(flags.doublebuf)
+         vidFlags |= SDL_DOUBLEBUF;
++#endif
+ 
+     // Calculate the window scale
+     win_xscale = mouse_xscale = (flags.xres << 16) / xres;
+@@ -113,8 +118,14 @@
+     // Set the icon for this window.  Looks nice on taskbars etc.
+     SDL_WM_SetIcon(SDL_LoadBMP("abuse.bmp"), NULL);
+ 
+-    // Create the window with a preference for 8-bit (palette animations!), but accept any depth */
++    // Create the window with a preference for 8-bit (palette animations!), but accept any depth
++#if defined __PSP__
++    // PSP: Use 16 bit, also do the initialization two times because of some bug in SDL for PSP
++    window = SDL_SetVideoMode(flags.xres, flags.yres, 16, vidFlags);
++    window = SDL_SetVideoMode(flags.xres, flags.yres, 16, vidFlags);
++#else
+     window = SDL_SetVideoMode(flags.xres, flags.yres, 8, vidFlags | SDL_ANYFORMAT);
++#endif
+     if(window == NULL)
+     {
+         printf("Video : Unable to set video mode : %s\n", SDL_GetError());
+Index: src/view.cpp
+===================================================================
+--- src/view.cpp	(revision 684)
++++ src/view.cpp	(working copy)
+@@ -34,6 +34,11 @@
+ #include "nfserver.h"
+ #include "chat.h"
+ 
++#if defined __PSP__
++#include <pspsdk.h>
++#include <psputility.h>
++#endif
++
+ #define SHIFT_DOWN_DEFAULT 24
+ #define SHIFT_RIGHT_DEFAULT 0
+ 
+@@ -176,6 +181,11 @@
+ #if defined __CELLOS_LV2__
+     /* FIXME: retrieve login name */
+     return "Player";
++#elif defined __PSP__
++    if (sceUtilityGetSystemParamString(PSP_SYSTEMPARAM_ID_STRING_NICKNAME, cur_user_name, 20) == 0)
++      return cur_user_name;
++    else
++      return "Player";
+ #else
+     char const *login = getlogin();
+     return login ? login : "unknown";

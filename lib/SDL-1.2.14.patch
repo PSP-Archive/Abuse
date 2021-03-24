@@ -1,0 +1,93 @@
+diff -Naur src/audio/psp/SDL_pspaudio.c src/audio/psp/SDL_pspaudio.c
+--- src/audio/psp/SDL_pspaudio.c	Tue Mar  8 15:40:24 2011
++++ src/audio/psp/SDL_pspaudio.c	Tue Mar  8 15:55:52 2011
+@@ -22,6 +22,8 @@
+ 
+ /* PSP port contributed by Marcus R. Brown <mrbrown@ocgnet.org>. */
+ 
++/* JJS: Switched to sceAudioSRC* functions to enable 11025 Hz playback */
++
+ #ifdef SAVE_RCSID
+ static char rcsid =
+  "@(#) $Id: SDL_pspaudio.c,v 1.5 2004/01/04 16:49:13 slouken Exp $";
+@@ -114,12 +116,14 @@
+ {
+ 	Uint8 *mixbuf = this->hidden->mixbufs[this->hidden->next_buffer];
+ 
++	sceAudioSRCOutputBlocking(PSP_AUDIO_VOLUME_MAX, mixbuf);
++/*
+ 	if (this->spec.channels == 1) {
+ 		sceAudioOutputBlocking(this->hidden->channel, PSP_AUDIO_VOLUME_MAX, mixbuf);
+ 	} else {
+ 		sceAudioOutputPannedBlocking(this->hidden->channel, PSP_AUDIO_VOLUME_MAX, PSP_AUDIO_VOLUME_MAX, mixbuf);
+ 	}
+-
++*/
+ 	this->hidden->next_buffer = (this->hidden->next_buffer + 1) % NUM_BUFFERS;
+ }
+ 
+@@ -131,7 +135,8 @@
+ static void PSPAUD_CloseAudio(_THIS)
+ {
+ 	if (this->hidden->channel >= 0) {
+-		sceAudioChRelease(this->hidden->channel);
++		/* sceAudioChRelease(this->hidden->channel); */
++		sceAudioSRCChRelease();
+ 		this->hidden->channel = -1;
+ 	}
+ 
+@@ -170,7 +175,9 @@
+ 
+ 	/* The sample count must be a multiple of 64. */
+ 	spec->samples = PSP_AUDIO_SAMPLE_ALIGN(spec->samples);
+-	spec->freq = 44100;
++
++	/* Must be stereo for sceAudioSRCChReserve */
++	spec->channels = 2;
+ 
+ 	/* Update the fragment size as size in bytes. */
+ 	SDL_CalculateAudioSpec(spec);
+@@ -185,13 +192,16 @@
+ 		return -1;
+ 	}
+ 
+-	/* Setup the hardware channel. */
++	/* Setup the hardware channel. Note: Not necessary for sceAudioSRCChReserve. */
++/*
+ 	if (spec->channels == 1) {
+ 		format = PSP_AUDIO_FORMAT_MONO;
+ 	} else {
+ 		format = PSP_AUDIO_FORMAT_STEREO;
+ 	}
+-	this->hidden->channel = sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL, spec->samples, format);
++*/
++
++	this->hidden->channel = sceAudioSRCChReserve(spec->samples, spec->freq, spec->channels);
+ 	if (this->hidden->channel < 0) {
+ 		SDL_SetError("Couldn't reserve hardware channel");
+ 		free(this->hidden->rawbuf);
+diff -Naur src/video/psp/SDL_pspvideo.c src/video/psp/SDL_pspvideo.c
+--- src/video/psp/SDL_pspvideo.c	Tue Mar  8 15:40:39 2011
++++ src/video/psp/SDL_pspvideo.c	Tue Mar  8 15:52:45 2011
+@@ -57,7 +57,8 @@
+ #define SCREEN_WIDTH (480)
+ #define SCREEN_HEIGHT (272)
+ 
+-#define IS_SWSURFACE(flags) ((flags & SDL_HWSURFACE) == SDL_SWSURFACE) 
++// JJS: Fixed the test for the SWSURFACE flag
++#define IS_SWSURFACE(flags) ((flags & SDL_SWSURFACE) == SDL_SWSURFACE) 
+ #define IS_HWSURFACE(flags) ((flags & SDL_HWSURFACE) == SDL_HWSURFACE) 
+ 
+ static unsigned int list[4096] __attribute__((aligned(16)));
+@@ -631,6 +632,11 @@
+ 	sceGuTexMode(current_video->hidden->tpsm,0,0,0);
+ 	sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
+ 	sceGuTexFilter(GU_LINEAR, GU_LINEAR);
++	
++	// JJS: Added texture clamping to fix a colored 1px border
++	// appearing at the top of the screen
++	sceGuTexWrap(GU_CLAMP, GU_CLAMP);
++	
+ 	sceGuTexImage(0, width, height, tbw, pixels);
+ 	sceGuTexSync();
+ 

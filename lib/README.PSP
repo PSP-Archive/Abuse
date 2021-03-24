@@ -1,0 +1,15 @@
+This is a patch against the MinPSPW 0.11.0 version of libSDL and libSDL_mixer (http://sourceforge.net/projects/minpspw/).
+
+Abuse-SDL for PSP will link and run with the version of libsdl that is supplied
+with the PSPSDK or MinPSPW, but there will be a 1 pixel high colored border at
+the top of the screen when the screen resolution is set lower than 480x272.
+
+Also support for different audio sampling frequencies was added in the patch,
+without them playback will always be at 44 kHz and causes considerable slowdown.
+
+The SDL_mixer patch fixes a bug wherein Mix_FreeMusic does not close the associated
+file handle when playing WAV music. It also applies changes so that Timidity
+searches its config file first in "./timidity/timidity.cfg" and then 
+in "ms0:/timidity/timidity.cfg".
+
+Libmikmod and SDL are licensed under the GNU Lesser General Public License.
